@@ -270,8 +270,14 @@ espera. Sem seção `functions`/`storage` de propósito (ver acima).
 - Status de inscrição: `inscrito`, `presente`, `ausente`, `cancelado`.
 
 ## Pendências / avisos conhecidos
-- Resend usa `onboarding@resend.dev` como remetente — trocar por domínio
-  verificado quando existir.
+- **Resend só entrega e-mail pra pedrohbvalieri@gmail.com por enquanto.**
+  A API key configurada no Worker é dessa conta, e sem domínio verificado
+  o Resend só permite enviar (remetente `onboarding@resend.dev`) pro
+  próprio e-mail dono da conta — qualquer outro destinatário recebe 403 da
+  API do Resend. Pra testar o fluxo de confirmação de identidade, cadastre
+  o aluno de teste com esse e-mail. Resolve de verdade verificando um
+  domínio em resend.com/domains (precisa de um domínio próprio, com
+  acesso ao DNS) ou trocando pra uma conta Resend de outro e-mail.
 - WhatsApp via Twilio Sandbox — cada número precisa mandar `join <código>`
   pro número do Sandbox antes de receber mensagens; API oficial da Meta
   fica pra uma fase futura.
