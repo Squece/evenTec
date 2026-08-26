@@ -1,0 +1,141 @@
+rules_version = '2';
+
+// Arquitetura sem backend próprio (sem Cloud Functions, sem Blaze — ver
+// CLAUDE.md): tudo que antes era garantido por Admin SDK agora é garantido
+// só por estas regras. Onde antes existia uma Cloud Function fazendo uma
+// checagem/transação, o comentário local explica a regra equivalente.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function autenticado() {
+      return request.auth != null;
+    }
+
+    // Sem custom claims (dependiam de uma Cloud Function pra serem
+    // setados) — o papel do usuário vem direto do próprio documento dele.
+    function papel() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function ehOrganizador() {
+      return autenticado() && papel() == 'organizador';
+    }
+
+    function ehDono(userId) {
+      return autenticado() && request.auth.uid == userId;
+    }
+
+    function organizadorDoEvento(eventId) {
+      let evento = get(/databases/$(database)/documents/events/$(eventId)).data;
+      return ehOrganizador() && (evento.organizadorId == request.auth.uid || request.auth.uid in evento.parceiros);
+    }
+
+    match /users/{userId} {
+      allow read: if ehDono(userId) || ehOrganizador();
+      allow create: if ehDono(userId) && request.resource.data.role in ['aluno', 'organizador'];
+      // role é imutável pelo dono — sem isso, um aluno viraria organizador
+      // só editando o próprio documento. telefoneVerificado o dono PODE
+      // setar: a confirmação de verdade já aconteceu antes, por um código
+      // que só chega pelo e-mail institucional (enviado pelo Worker em
+      // worker/) — sem nenhum servidor confiável rodando no Firebase, o
+      // write final tem que vir do cliente. É um gate de onboarding, não
+      // uma trava de segurança sobre dados sensíveis.
+      allow update: if ehDono(userId) && request.resource.data.role == resource.data.role;
+      allow delete: if false;
+    }
+
+    match /events/{eventId} {
+      allow read: if resource.data.status == 'publicado'
+                  || resource.data.status == 'em_andamento'
+                  || resource.data.status == 'encerrado'
+                  || (ehOrganizador() && resource.data.organizadorId == request.auth.uid);
+
+      allow create: if ehOrganizador();
+
+      // Organizador dono edita o próprio evento (título, status, etc.) —
+      // organizadorId nunca muda.
+      allow update: if ehOrganizador()
+                    && resource.data.organizadorId == request.auth.uid
+                    && request.resource.data.organizadorId == resource.data.organizadorId;
+
+      // Inscrição (era feita numa transação de Cloud Function): o aluno só
+      // pode mexer em vagasOcupadas pra incrementar exatamente 1, sem
+      // estourar a capacidade, e só quando isso está emparelhado (mesma
+      // transação do cliente) com a criação real da PRÓPRIA inscrição —
+      // getAfter() olha o resultado da outra escrita na mesma transação.
+      allow update: if autenticado()
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['vagasOcupadas'])
+                    && request.resource.data.vagasOcupadas == resource.data.vagasOcupadas + 1
+                    && (!('capacidade' in resource.data) || resource.data.capacidade == null
+                        || resource.data.vagasOcupadas < resource.data.capacidade)
+                    && getAfter(/databases/$(database)/documents/registrations/$(eventId + '_' + request.auth.uid)).data.status == 'inscrito';
+
+      // Cancelamento: libera 1 vaga, emparelhado com o cancelamento real da
+      // própria inscrição na mesma transação.
+      allow update: if autenticado()
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['vagasOcupadas'])
+                    && request.resource.data.vagasOcupadas == resource.data.vagasOcupadas - 1
+                    && getAfter(/databases/$(database)/documents/registrations/$(eventId + '_' + request.auth.uid)).data.status == 'cancelado';
+
+      allow delete: if false;
+    }
+
+    // ID do documento = "{eventId}_{userId}" (determinístico, não
+    // auto-gerado) — impede duas inscrições ativas do mesmo aluno no mesmo
+    // evento, e permite que a regra de `events` acima confira a inscrição
+    // pareada sem precisar de uma query.
+    match /registrations/{registrationId} {
+      allow read: if autenticado() && (resource.data.userId == request.auth.uid || ehOrganizador());
+
+      allow create: if autenticado()
+                    && request.resource.data.userId == request.auth.uid
+                    && request.resource.data.status == 'inscrito'
+                    && registrationId == request.resource.data.eventId + '_' + request.auth.uid;
+
+      // Aluno cancela a própria inscrição.
+      allow update: if autenticado()
+                    && resource.data.userId == request.auth.uid
+                    && resource.data.status == 'inscrito'
+                    && request.resource.data.status == 'cancelado'
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']);
+
+      // Aluno se reinscreve depois de ter cancelado (reaproveita o mesmo
+      // documento, já que o ID é determinístico).
+      allow update: if autenticado()
+                    && resource.data.userId == request.auth.uid
+                    && resource.data.status == 'cancelado'
+                    && request.resource.data.status == 'inscrito'
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']);
+
+      // Organizador (dono ou parceiro) confirma presença ao escanear o QR
+      // do aluno — sem Cloud Function, quem garante que só organizador
+      // confirma é esta regra.
+      allow update: if organizadorDoEvento(resource.data.eventId)
+                    && resource.data.status == 'inscrito'
+                    && request.resource.data.status == 'presente'
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'checkedInAt'])
+                    && request.resource.data.checkedInAt == request.time;
+
+      allow delete: if false;
+    }
+
+    match /certificates/{certificateId} {
+      // Certificado é comprovante de participação, pensado pra ser
+      // conferido por qualquer pessoa que tenha o código de validação —
+      // mesma decisão de design do endpoint público que existia antes.
+      allow read: if true;
+
+      // ID do certificado = ID da própria inscrição (evita duplicar
+      // certificado pro mesmo registro). Só organizador do evento gera, e
+      // só pra inscrição que está mesmo com presença confirmada.
+      allow create: if organizadorDoEvento(request.resource.data.eventId)
+                    && certificateId == request.resource.data.registrationId
+                    && get(/databases/$(database)/documents/registrations/$(request.resource.data.registrationId)).data.status == 'presente'
+                    && get(/databases/$(database)/documents/registrations/$(request.resource.data.registrationId)).data.userId == request.resource.data.userId
+                    && get(/databases/$(database)/documents/registrations/$(request.resource.data.registrationId)).data.eventId == request.resource.data.eventId;
+
+      allow update, delete: if false;
+    }
+  }
+}

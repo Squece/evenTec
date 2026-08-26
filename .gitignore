@@ -1,0 +1,32 @@
+# Dependências
+**/node_modules
+
+# Builds
+web/dist
+functions/lib
+worker/dist
+
+# Segredos — nunca commitar
+**/.env
+!**/.env.example
+
+# Firebase
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+*.log
+
+# Wrangler
+worker/.wrangler/
+worker/.dev.vars
+
+# Config local do Claude Code (não é do projeto)
+.claude/settings.local.json
+
+# Editor / SO
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+Thumbs.db

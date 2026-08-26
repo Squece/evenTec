@@ -1,0 +1,19 @@
+name = "eventec-notificacoes"
+main = "src/index.ts"
+compatibility_date = "2024-11-01"
+
+[vars]
+FIREBASE_PROJECT_ID = "eventec-academic"
+# CORS: origem(s) autorizada(s) a chamar este Worker, separadas por vírgula.
+# Inclua tanto o localhost do Vite quanto o domínio de produção depois do deploy.
+ALLOWED_ORIGINS = "http://localhost:5173,http://127.0.0.1:5173,https://eventec-academic.web.app,https://eventec-academic.firebaseapp.com"
+
+[[kv_namespaces]]
+binding = "CODES"
+id = "157058e54fa54a88a7868a8d03113a09"
+
+# Segredos (não vão pro código nem pro git — configure com `wrangler secret put <NOME>`):
+#   RESEND_API_KEY
+#   TWILIO_ACCOUNT_SID
+#   TWILIO_AUTH_TOKEN
+#   TWILIO_WHATSAPP_FROM   (opcional — padrão é o número do Sandbox)
