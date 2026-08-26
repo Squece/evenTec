@@ -1,0 +1,127 @@
+// Worker "trocador de secrets": o app eveTec não tem nenhum backend próprio
+// (sem Blaze, sem Cloud Functions — ver CLAUDE.md). Firestore Rules cobrem
+// toda a lógica de autorização do app; este Worker existe só pra guardar as
+// chaves do Resend/Twilio longe do navegador, já que essas APIs nunca podem
+// ser chamadas com a chave exposta no cliente. Cada rota confere um Firebase
+// ID token válido antes de disparar qualquer coisa.
+import type { Env } from './env';
+import { AuthError, verificarToken } from './auth';
+import { enviarEmail } from './resend';
+import { enviarWhatsApp } from './twilio';
+
+function corsHeaders(request: Request, env: Env): HeadersInit {
+  const origem = request.headers.get('Origin') ?? '';
+  const permitidas = env.ALLOWED_ORIGINS.split(',').map((o) => o.trim());
+  return {
+    'Access-Control-Allow-Origin': permitidas.includes(origem) ? origem : permitidas[0],
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Authorization, Content-Type',
+    Vary: 'Origin',
+  };
+}
+
+function json(dados: unknown, status: number, cors: HeadersInit): Response {
+  return new Response(JSON.stringify(dados), {
+    status,
+    headers: { 'Content-Type': 'application/json', ...cors },
+  });
+}
+
+export default {
+  async fetch(request: Request, env: Env): Promise<Response> {
+    const cors = corsHeaders(request, env);
+
+    if (request.method === 'OPTIONS') {
+      return new Response(null, { status: 204, headers: cors });
+    }
+
+    const url = new URL(request.url);
+
+    try {
+      if (request.method === 'POST' && url.pathname === '/confirmacao-inscricao') {
+        const claims = await verificarToken(request, env);
+        if (!claims.email) return json({ erro: 'Token sem e-mail.' }, 400, cors);
+        const { nomeEvento, linkApp } = (await request.json()) as { nomeEvento: string; linkApp?: string };
+
+        const sucesso = await enviarEmail(env, {
+          para: claims.email,
+          assunto: `Inscrição confirmada: ${nomeEvento}`,
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+              <h2>Olá ${claims.name ?? ''}!</h2>
+              <p>Sua inscrição no evento <strong>${nomeEvento}</strong> foi confirmada com sucesso.</p>
+              ${linkApp ? `<p><a href="${linkApp}">Ver meu QR Code</a></p>` : ''}
+            </div>
+          `,
+        });
+        return json({ ok: sucesso }, 200, cors);
+      }
+
+      if (request.method === 'POST' && url.pathname === '/certificado/notificar') {
+        // Só confirma que quem chamou é um usuário logado de verdade — sem
+        // Firestore no Worker não dá pra confirmar aqui que é o organizador
+        // daquele evento específico (isso já foi checado pelas Firestore
+        // Rules na hora de gerar o certificado no cliente). Pior caso de
+        // abuso: um usuário autenticado dispara e-mails/whatsapp de
+        // "certificado disponível" com conteúdo fixo — chato, não malicioso.
+        await verificarToken(request, env);
+        const { nome, email, telefone, nomeEvento, linkApp } = (await request.json()) as {
+          nome: string;
+          email: string;
+          telefone?: string;
+          nomeEvento: string;
+          linkApp?: string;
+        };
+
+        const sucessoEmail = await enviarEmail(env, {
+          para: email,
+          assunto: `Seu certificado — ${nomeEvento}`,
+          html: `<p>Olá ${nome}, seu certificado já está disponível na plataforma.</p>
+                 ${linkApp ? `<p><a href="${linkApp}">Ver certificado</a></p>` : ''}`,
+        });
+
+        const sucessoWhatsApp = telefone
+          ? await enviarWhatsApp(env, {
+              telefone,
+              mensagem: `Olá ${nome}! 🎓\n\nSeu certificado do evento *${nomeEvento}* já está disponível no app.`,
+            })
+          : false;
+
+        return json({ ok: true, sucessoEmail, sucessoWhatsApp }, 200, cors);
+      }
+
+      if (request.method === 'POST' && url.pathname === '/lembrete') {
+        await verificarToken(request, env);
+        const { nome, email, telefone, nomeEvento, linkApp } = (await request.json()) as {
+          nome: string;
+          email: string;
+          telefone?: string;
+          nomeEvento: string;
+          linkApp?: string;
+        };
+
+        const sucessoEmail = await enviarEmail(env, {
+          para: email,
+          assunto: `Lembrete: hoje é o dia do evento ${nomeEvento}`,
+          html: `<p>Olá ${nome}, passando pra lembrar que hoje é o dia do evento <strong>${nomeEvento}</strong>.</p>
+                 ${linkApp ? `<p><a href="${linkApp}">Ver meu QR Code</a></p>` : ''}`,
+        });
+
+        const sucessoWhatsApp = telefone
+          ? await enviarWhatsApp(env, {
+              telefone,
+              mensagem: `Olá ${nome}! 📅\n\nLembrete: hoje é o dia do evento *${nomeEvento}*.`,
+            })
+          : false;
+
+        return json({ ok: true, sucessoEmail, sucessoWhatsApp }, 200, cors);
+      }
+
+      return json({ erro: 'not_found' }, 404, cors);
+    } catch (err) {
+      if (err instanceof AuthError) return json({ erro: err.message }, 401, cors);
+      console.error(err);
+      return json({ erro: 'Erro interno.' }, 500, cors);
+    }
+  },
+};
