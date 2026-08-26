@@ -270,14 +270,24 @@ espera. Sem seção `functions`/`storage` de propósito (ver acima).
 - Status de inscrição: `inscrito`, `presente`, `ausente`, `cancelado`.
 
 ## Pendências / avisos conhecidos
-- **Resend só entrega e-mail pra pedrohbvalieri@gmail.com por enquanto.**
-  A API key configurada no Worker é dessa conta, e sem domínio verificado
-  o Resend só permite enviar (remetente `onboarding@resend.dev`) pro
-  próprio e-mail dono da conta — qualquer outro destinatário recebe 403 da
-  API do Resend. Pra testar o fluxo de confirmação de identidade, cadastre
-  o aluno de teste com esse e-mail. Resolve de verdade verificando um
-  domínio em resend.com/domains (precisa de um domínio próprio, com
-  acesso ao DNS) ou trocando pra uma conta Resend de outro e-mail.
+- **Decisão: sem domínio próprio por enquanto — Resend só entrega e-mail
+  pra pedrohbvalieri@gmail.com.** A API key configurada no Worker é dessa
+  conta, e sem domínio verificado o Resend só permite enviar (remetente
+  `onboarding@resend.dev`) pro próprio e-mail dono da conta — qualquer
+  outro destinatário recebe 403 da API do Resend. Convidar um membro de
+  equipe (Settings → Team no Resend) foi cogitado como possível
+  alternativa, mas nunca chegou a ser testado — não confirmar que
+  funciona sem checar de novo. Existe um domínio `eventec.com` cadastrado
+  no Resend (status `not_started`) que ninguém chegou a comprar — é só um
+  registro órfão, sem efeito.
+  - Pra testar confirmação de identidade recebendo e-mail de verdade: use
+    a conta `pedrohbvalieri@gmail.com` (funciona com qualquer papel,
+    porque `/confirmar-identidade` não é uma rota exclusiva de aluno).
+  - Pra destravar uma conta de teste de aluno com outro e-mail sem
+    depender do envio: edite `telefoneVerificado` pra `true` direto no
+    Firestore (Console > Firestore > `users/{uid}`).
+  - Resolve de vez isso comprando um domínio (registrador qualquer) e
+    verificando em resend.com/domains — decisão adiada por enquanto.
 - WhatsApp via Twilio Sandbox — cada número precisa mandar `join <código>`
   pro número do Sandbox antes de receber mensagens; API oficial da Meta
   fica pra uma fase futura.
