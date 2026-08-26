@@ -15,14 +15,14 @@ de certificados em PDF.
 ## Requisitos funcionais
 
 ### Módulo do aluno
-- Cadastro e autenticação com e-mail pessoal (login) + e-mail institucional
-  + telefone, com confirmação de identidade — via **código enviado ao
-  e-mail institucional (Resend)**, não SMS (Firebase Phone Auth exigiria
-  plano Blaze + reCAPTCHA, fora do escopo do projeto). Sem RM — não faz
-  parte do cadastro nem do certificado.
+- Cadastro e autenticação com e-mail + telefone, com confirmação de
+  identidade — via **código enviado ao próprio e-mail (Resend)**, não SMS
+  (Firebase Phone Auth exigiria plano Blaze + reCAPTCHA, fora do escopo do
+  projeto). Sem RM e sem e-mail institucional separado — só um e-mail
+  mesmo, usado tanto pro login quanto pra confirmação.
 - Login com Google também disponível; quem entra pela primeira vez por lá
   passa por uma tela de completar cadastro (escolhe papel, preenche
-  curso/e-mail institucional/telefone).
+  curso/telefone).
 - Visualização apenas de eventos publicados/abertos.
 - Inscrição em eventos com feedback visual claro.
 - Tela com o próprio QR Code (gerado a partir da inscrição) para ser
@@ -141,9 +141,8 @@ Segredos do Worker (via `wrangler secret put`, nunca em `wrangler.toml`):
 
 ## Modelo de dados (Firestore)
 - `users/{uid}` — role, nome, curso (só aluno, usado na divulgação
-  segmentada), email (pessoal — é o login), emailInstitucional (só aluno,
-  recebe o código de confirmação de identidade), telefone,
-  telefoneVerificado
+  segmentada), email (é o login e recebe o código de confirmação de
+  identidade), telefone, telefoneVerificado
 - `events/{id}` — titulo, descricao, dataHora, local, modalidade,
   cargaHoraria, capacidade, vagasOcupadas, status, organizadorId,
   parceiros[], divulgacao ({ tipo: imediata|programada|segmentada,

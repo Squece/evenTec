@@ -9,8 +9,7 @@ export interface UserProfile {
   role: UserRole;
   nome: string;
   curso?: string;
-  email: string; // e-mail pessoal — é o login (Firebase Auth)
-  emailInstitucional?: string; // só aluno — recebe o código de confirmação de identidade
+  email: string;
   telefone: string;
   telefoneVerificado: boolean;
   criadoEm: Timestamp;

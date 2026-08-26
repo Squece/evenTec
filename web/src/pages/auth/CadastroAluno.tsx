@@ -11,7 +11,6 @@ export default function CadastroAluno() {
   const [nome, setNome] = useState('');
   const [curso, setCurso] = useState('');
   const [email, setEmail] = useState('');
-  const [emailInstitucional, setEmailInstitucional] = useState('');
   const [telefone, setTelefone] = useState('');
   const [senha, setSenha] = useState('');
   const [erro, setErro] = useState<string | null>(null);
@@ -31,7 +30,6 @@ export default function CadastroAluno() {
         nome,
         curso,
         email,
-        emailInstitucional,
         telefone,
         telefoneVerificado: false,
         criadoEm: serverTimestamp(),
@@ -51,19 +49,12 @@ export default function CadastroAluno() {
         <Campo label="Nome completo" value={nome} onChange={setNome} required autoComplete="name" />
         <Campo label="Curso" value={curso} onChange={setCurso} required />
         <Campo
-          label="E-mail pessoal"
+          label="E-mail"
           type="email"
           value={email}
           onChange={setEmail}
           required
           autoComplete="email"
-        />
-        <Campo
-          label="E-mail institucional"
-          type="email"
-          value={emailInstitucional}
-          onChange={setEmailInstitucional}
-          required
         />
         <Campo
           label="Telefone (com DDD)"

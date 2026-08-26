@@ -179,7 +179,7 @@ export default function PainelInscritos() {
             <li key={regId} className="p-3 flex items-center justify-between gap-3">
               <div>
                 <p className="font-medium">{aluno?.nome ?? 'Aluno'}</p>
-                <p className="text-xs text-slate-500">{aluno?.emailInstitucional ?? aluno?.email ?? '-'}</p>
+                <p className="text-xs text-slate-500">{aluno?.email ?? '-'}</p>
               </div>
               <span
                 className={`text-xs px-2 py-1 rounded-full shrink-0 ${

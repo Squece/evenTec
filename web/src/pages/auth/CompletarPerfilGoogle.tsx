@@ -16,7 +16,6 @@ export default function CompletarPerfilGoogle() {
   const [role, setRole] = useState<UserRole>('aluno');
   const [nome, setNome] = useState(usuario?.displayName ?? '');
   const [curso, setCurso] = useState('');
-  const [emailInstitucional, setEmailInstitucional] = useState('');
   const [telefone, setTelefone] = useState('');
   const [erro, setErro] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
@@ -35,7 +34,7 @@ export default function CompletarPerfilGoogle() {
         uid: usuario.uid,
         role,
         nome,
-        ...(role === 'aluno' ? { curso, emailInstitucional } : {}),
+        ...(role === 'aluno' ? { curso } : {}),
         email: usuario.email ?? '',
         telefone,
         telefoneVerificado: false,
@@ -69,18 +68,7 @@ export default function CompletarPerfilGoogle() {
 
         <Campo label="Nome completo" value={nome} onChange={setNome} required autoComplete="name" />
 
-        {role === 'aluno' && (
-          <>
-            <Campo label="Curso" value={curso} onChange={setCurso} required />
-            <Campo
-              label="E-mail institucional"
-              type="email"
-              value={emailInstitucional}
-              onChange={setEmailInstitucional}
-              required
-            />
-          </>
-        )}
+        {role === 'aluno' && <Campo label="Curso" value={curso} onChange={setCurso} required />}
 
         <Campo
           label="Telefone (com DDD)"

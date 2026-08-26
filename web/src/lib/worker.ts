@@ -53,8 +53,8 @@ export function notificarConfirmacaoInscricao(nomeEvento: string, linkApp?: stri
   return chamarWorker('/confirmacao-inscricao', { nomeEvento, linkApp });
 }
 
-export function enviarCodigoConfirmacao(emailInstitucional: string): Promise<boolean> {
-  return chamarWorker('/codigo/enviar', { emailInstitucional });
+export function enviarCodigoConfirmacao(): Promise<boolean> {
+  return chamarWorker('/codigo/enviar', {});
 }
 
 export async function confirmarCodigo(codigo: string): Promise<boolean> {

@@ -66,17 +66,13 @@ export default {
 
       if (request.method === 'POST' && url.pathname === '/codigo/enviar') {
         const claims = await verificarToken(request, env);
-        if (!claims.user_id) return json({ erro: 'Token inválido.' }, 400, cors);
-        // O e-mail institucional não vem do token (o login é pelo e-mail
-        // pessoal) — o cliente manda o valor salvo no perfil do Firestore.
-        const { emailInstitucional } = (await request.json()) as { emailInstitucional?: string };
-        if (!emailInstitucional) return json({ erro: 'Informe o e-mail institucional.' }, 400, cors);
+        if (!claims.email || !claims.user_id) return json({ erro: 'Token inválido.' }, 400, cors);
 
         const codigo = gerarCodigo();
         await env.CODES.put(`codigo:${claims.user_id}`, codigo, { expirationTtl: TTL_CODIGO_SEGUNDOS });
 
         const sucesso = await enviarEmail(env, {
-          para: emailInstitucional,
+          para: claims.email,
           assunto: 'Seu código de confirmação — evenTec',
           html: `
             <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto;">

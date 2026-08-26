@@ -20,17 +20,13 @@ export default function ConfirmarIdentidade() {
   }, [perfil, navigate]);
 
   async function enviarCodigo() {
-    if (!perfil?.emailInstitucional) {
-      setMensagem({ tipo: 'erro', texto: 'Seu perfil não tem e-mail institucional cadastrado.' });
-      return;
-    }
     setCarregando(true);
     setMensagem(null);
-    const sucesso = await enviarCodigoConfirmacao(perfil.emailInstitucional);
+    const sucesso = await enviarCodigoConfirmacao();
     setEnviado(sucesso);
     setMensagem(
       sucesso
-        ? { tipo: 'sucesso', texto: 'Código enviado! Confira seu e-mail institucional.' }
+        ? { tipo: 'sucesso', texto: 'Código enviado! Confira seu e-mail.' }
         : { tipo: 'erro', texto: 'Não foi possível enviar o código. Tente novamente.' }
     );
     setCarregando(false);
@@ -63,8 +59,8 @@ export default function ConfirmarIdentidade() {
     <div className="max-w-sm mx-auto mt-8 px-4 space-y-4">
       <h1 className="text-2xl font-bold text-center">Confirme sua identidade</h1>
       <p className="text-sm text-slate-600 text-center">
-        Enviamos um código de 6 dígitos pro seu e-mail institucional
-        {perfil?.emailInstitucional ? ` (${perfil.emailInstitucional})` : ''} pra confirmar seu cadastro.
+        Enviamos um código de 6 dígitos pro seu e-mail{usuario?.email ? ` (${usuario.email})` : ''} pra confirmar
+        seu cadastro.
       </p>
 
       {!enviado ? (
